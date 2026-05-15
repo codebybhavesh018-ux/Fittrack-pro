@@ -1,0 +1,152 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Admin check - Bootstrapped with user email
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'dariyadevichoudhary968@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // --- Entity Validations ---
+
+    function isValidUser(data) {
+      return data.uid is string && data.uid == request.auth.uid &&
+             data.displayName is string && data.displayName.size() <= 100 &&
+             data.totalSteps is int && data.totalSteps >= 0 &&
+             data.totalDistance is number && data.totalDistance >= 0 &&
+             data.totalCalories is number && data.totalCalories >= 0 &&
+             data.xp is int && data.xp >= 0 &&
+             data.level is int && data.level >= 0 &&
+             data.badges is list && data.badges.size() <= 100 &&
+             data.dailyGoal is int && data.dailyGoal > 0 &&
+             (data.get('waterGoal', 8) is int) &&
+             (data.get('currentWater', 0) is int) &&
+             (data.get('weight', 75) is number) &&
+             (data.get('targetWeight', 70) is number);
+    }
+
+    function isValidNutrition(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.meal is string && data.meal.size() <= 200 &&
+             data.calories is number && data.calories >= 0 &&
+             data.protein is number && data.protein >= 0 &&
+             data.carbs is number && data.carbs >= 0 &&
+             data.fat is number && data.fat >= 0 &&
+             (data.timestamp is timestamp || data.timestamp is string);
+    }
+
+    function isValidActivity(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.type in ['walk', 'run', 'cycle'] &&
+             data.steps is int && data.steps >= 0 &&
+             data.distance is number && data.distance >= 0 &&
+             data.calories is number && data.calories >= 0 &&
+             data.path is list && data.path.size() <= 1000;
+    }
+
+    function isValidHistory(data) {
+      return data.date is string && data.date.size() <= 20 &&
+             data.steps is int && data.steps >= 0 &&
+             data.calories is number && data.calories >= 0 &&
+             data.distance is number && data.distance >= 0;
+    }
+
+    function isValidHabit(data) {
+      return data.name is string && data.name.size() <= 100 &&
+             data.category in ['Physical', 'Mental', 'Nutrition'] &&
+             data.completed is bool &&
+             data.streak is int && data.streak >= 0;
+    }
+
+    // --- Rules ---
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      
+      // Action-based updates
+      allow update: if isOwner(userId) && isValidUser(incoming()) && (
+        // Action: Update Stats & XP
+        incoming().diff(existing()).affectedKeys().hasOnly(['totalSteps', 'totalDistance', 'totalCalories', 'xp', 'level', 'badges']) ||
+        // Action: Settings update
+        incoming().diff(existing()).affectedKeys().hasOnly(['dailyGoal', 'displayName', 'photoURL', 'waterGoal', 'targetWeight']) ||
+        // Action: Hydration/Weight update
+        incoming().diff(existing()).affectedKeys().hasOnly(['currentWater', 'weight']) ||
+        // Action: Reset Data
+        incoming().diff(existing()).affectedKeys().hasOnly(['totalSteps', 'totalDistance', 'totalCalories', 'xp', 'level', 'currentWater', 'weight', 'targetWeight', 'badges'])
+      );
+
+      match /history/{date} {
+        allow get: if isOwner(userId) || isAdmin();
+        allow list: if isOwner(userId) || isAdmin();
+        allow create, update: if isOwner(userId) && isValidHistory(incoming());
+        allow delete: if isAdmin();
+      }
+
+      match /habits/{habitId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidHabit(incoming());
+        allow update: if isOwner(userId) && isValidHabit(incoming()) && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['completed', 'streak', 'name', 'category'])
+        );
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    match /nutrition/{mealId} {
+      allow get: if isSignedIn() && (isOwner(existing().userId) || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidNutrition(incoming());
+      allow delete: if isSignedIn() && (isOwner(existing().userId) || isAdmin());
+    }
+
+    match /activities/{activityId} {
+      allow get: if isSignedIn() && (isOwner(existing().userId) || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidActivity(incoming());
+      allow delete: if isSignedIn() && (isOwner(existing().userId) || isAdmin());
+    }
+
+    match /challenges/{challengeId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /badges/{badgeId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    
+    match /admins/{adminId} {
+      allow read: if isAdmin();
+    }
+  }
+}

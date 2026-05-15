@@ -1,0 +1,12 @@
+{
+  "name": "FitTrack Pro",
+  "description": "Comprehensive fitness tracking app with live location, maps, calories, gamification, and AI training plans.",
+  "requestFramePermissions": [
+    "geolocation",
+    "accelerometer",
+    "gyroscope"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

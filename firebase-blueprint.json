@@ -1,0 +1,137 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User fitness profile and gamification stats",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "totalSteps": { "type": "integer" },
+        "totalDistance": { "type": "number" },
+        "totalCalories": { "type": "number" },
+        "level": { "type": "integer" },
+        "xp": { "type": "integer" },
+        "badges": { "type": "array", "items": { "type": "string" } },
+        "dailyGoal": { "type": "integer" },
+        "waterGoal": { "type": "integer" },
+        "currentWater": { "type": "integer" },
+        "weight": { "type": "number" },
+        "targetWeight": { "type": "number" }
+      },
+      "required": ["uid", "displayName"]
+    },
+    "Nutrition": {
+      "title": "Nutrition Log",
+      "properties": {
+        "userId": { "type": "string" },
+        "meal": { "type": "string" },
+        "calories": { "type": "number" },
+        "protein": { "type": "number" },
+        "carbs": { "type": "number" },
+        "fat": { "type": "number" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Activity": {
+      "title": "Fitness Activity",
+      "description": "A single workout or tracking session",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["walk", "run", "cycle"] },
+        "startTime": { "type": "string", "format": "date-time" },
+        "endTime": { "type": "string", "format": "date-time" },
+        "steps": { "type": "integer" },
+        "distance": { "type": "number" },
+        "calories": { "type": "number" },
+        "duration": { "type": "integer" },
+        "path": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "lat": { "type": "number" },
+              "lng": { "type": "number" }
+            }
+          }
+        }
+      }
+    },
+    "Challenge": {
+      "title": "Gamification Challenge",
+      "description": "Challenges for users to earn rewards",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "targetType": { "type": "string", "enum": ["steps", "distance", "calories"] },
+        "targetValue": { "type": "number" },
+        "rewardXp": { "type": "integer" },
+        "expiryDate": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Badge": {
+      "title": "Achievement Badge",
+      "description": "Earned by reaching milestones",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "icon": { "type": "string" },
+        "thresholdType": { "type": "string" },
+        "thresholdValue": { "type": "number" }
+      }
+    },
+    "History": {
+      "title": "Daily History Summary",
+      "description": "Aggregated daily stats for history tracking",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "steps": { "type": "integer" },
+        "calories": { "type": "number" },
+        "distance": { "type": "number" }
+      }
+    },
+    "Habit": {
+      "title": "Habit",
+      "description": "A recurring habit tracked by the user",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string", "enum": ["Physical", "Mental", "Nutrition"] },
+        "completed": { "type": "boolean" },
+        "streak": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/users/{userId}/history/{date}": {
+      "schema": "History",
+      "description": "Daily summary records"
+    },
+    "/users/{userId}/habits/{habitId}": {
+      "schema": "Habit",
+      "description": "User habit tracking"
+    },
+    "/activities/{activityId}": {
+      "schema": "Activity",
+      "description": "Workout sessions"
+    },
+    "/challenges/{challengeId}": {
+      "schema": "Challenge",
+      "description": "Available challenges"
+    },
+    "/badges/{badgeId}": {
+      "schema": "Badge",
+      "description": "Badge definitions"
+    }
+  }
+}
